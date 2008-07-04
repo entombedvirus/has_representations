@@ -1,0 +1,45 @@
+HasRepresentations
+==================
+
+The primary purpose of HasRepresentations is to make models aware of various ways they're displayed to in the app, for the purposes of caching. An example would probably serve to better illustrate this:
+
+Imagine we track user activities in our application. Let's say that every time a user logs in or "pokes" another user, we track it by creating activity records in the DB. So an activity representing User#1 poking User#2 might look like this:
+
+>> poking.attributes
+=> {
+  :id => 1,
+  :actor_id => 1,
+  :actee_id => 2,
+  :action => "poked",
+  :created_at => "Thu Jul 03 19:49:45 -0700 2008"
+}
+
+And the it is displayed in the front-end as "John poked Sara.", where John and Sara are the names for users with ids 1 and 2 respectively.When you have a huge number of activity lines in the database, traversing the actor and actee relationships for each activity row to render the activity in HTML becomes impractical. 
+
+HasRepresentations attempts to solve this problem by saving the generated HTML as an attribute of the model by using the before_save hook of ActiveRecord so that you no longer need to traverse the associations.
+
+To use the plugin, you need to add fields to the activity table with the following naming scheme: "#{representation_name}_representation" So if one of the representations was called "news_feed", the column name would be "news_feed_representation"
+
+Example
+=======
+
+>> class Activity
+     belongs_to :actor, :class_name => 'User'
+     belongs_to :actee, :class_name => 'User'
+     has_representations :news_feed => Proc.new {|activity| "#{activity.actor.name} #{activity.action} #{activity.actee.name}"}
+   end
+
+>> a = Activity.new(:actor_id => 1, :actee_id => 2, :action => "name")     
+>> a.save
+>> a.news_feed_representation
+=> "John poked Sara"
+
+>> a.actor_id = 3
+>> a.news_feed_representation # the cache field still has old data...
+=> "John poked Sara"
+
+>> a.to_representation(:news_feed)
+=> "Chris poked Sara"
+
+
+Copyright (c) 2008 Rohith Ravi (entombedvirus at gmail), released under the MIT license
